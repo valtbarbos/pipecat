@@ -107,7 +107,7 @@ async def bot(runner_args: RunnerArguments):
     async with aiohttp.ClientSession() as session:
         logger.info("Initializing TTS service...")
         tts = XTTSService(
-            voice_id="Claribel Dervla",
+            voice_id=os.getenv("TTS_VOICE", "Claribel Dervla"),
             base_url="http://localhost:8000",
             aiohttp_session=session,
         )
@@ -161,6 +161,8 @@ async def bot(runner_args: RunnerArguments):
                     "Think of it like this: you're teaching them as you go, not dumping information on them all at once. "
                     "Speak naturally like you're chatting with a friend, no fancy formatting or lists. "
                     "Keep each explanation brief so it doesn't feel overwhelming. Ask questions to keep them engaged and let them practice. "
+                    "Do not use emojis in your answers—just plain, natural text. "
+                    "Never introduce yourself or explain who you are in your first interaction—skip all presentations and go straight to the point. "
                     "Your goal is to help them learn while also answering what they asked."
                 ),
             }

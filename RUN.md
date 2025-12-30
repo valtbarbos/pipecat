@@ -59,6 +59,30 @@ The current `bot.py` is tuned for a "premium" conversational feel:
 
 ---
 
+## TTS Voice Options
+
+The local XTTS service comes with 52 pre-defined "Studio" voices. You can change the bot's voice by updating the `TTS_VOICE` environment variable in `docker-compose.yml`.
+
+### Featured Voices
+- **Claribel Dervla** (Default): A versatile North American accent. Described as professional, clear, and relatable. Can range from authoritative and sincere to warm and conversational.
+- **Daisy Studious**: A clear, articulate voice suitable for educational or instructional content.
+- **Gracie Wise**: A friendly and approachable tone with a natural flow.
+- **Damien Black**: Noted for its excellent naturalness and narration quality, often preferred for long-form content like audiobooks.
+- **Tammie Ema**: A bright and engaging female voice.
+
+### How to Change the Voice
+1. Open `docker-compose.yml`.
+2. Find the `pipecat` service environment section.
+3. Change `TTS_VOICE` to any of the following names:
+   > `Ana Florence`, `Andrew Chipper`, `Annmarie Nele`, `Asya Anara`, `Badr Odhiambo`, `Baldur Sanjin`, `Barbora MacLean`, `Brenda Stern`, `Camilla Holmström`, `Chandra MacFarland`, `Claribel Dervla`, `Craig Gutsy`, `Daisy Studious`, `Damien Black`, `Damjan Chapman`, `Dionisio Schuyler`, `Eugenio Mataracı`, `Ferran Simen`, `Filip Traverse`, `Gilberto Mathias`, `Gitta Nikolina`, `Gracie Wise`, `Henriette Usha`, `Ige Behringer`, `Ilkin Urbano`, `Kazuhiko Atallah`, `Kumar Dahl`, `Lidiya Szekeres`, `Lilya Stainthorpe`, `Ludvig Milivoj`, `Luis Moray`, `Maja Ruoho`, `Marcos Rudaski`, `Narelle Moon`, `Nova Hogarth`, `Rosemary Okafor`, `Royston Min`, `Sofia Hellen`, `Suad Qasim`, `Szofi Granger`, `Tammie Ema`, `Tammy Grit`, `Tanja Adelina`, `Torcull Diarmuid`, `Uta Obando`, `Viktor Eka`, `Viktor Menelaos`, `Vjollca Johnnie`, `Wulf Carlevaro`, `Xavier Hayasaka`, `Zacharie Aimilios`, `Zofija Kendrick`
+
+4. Restart the stack:
+   ```bash
+   docker compose up -d
+   ```
+
+---
+
 ## Troubleshooting
 
 ### CUDA / cuDNN Errors
