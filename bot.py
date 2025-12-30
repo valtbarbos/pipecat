@@ -1,3 +1,19 @@
+"""SOTA Pipecat Local Bot Implementation.
+
+This bot demonstrates a State-Of-The-Art (SOTA) conversational AI pipeline running
+entirely on local hardware (optimized for RTX 4090).
+
+Features:
+- STT: Whisper Large V3 Turbo (Local GPU via faster-whisper)
+- LLM: Gemma 3 27B (Local via Ollama)
+- TTS: Coqui XTTS v2 (Local)
+- VAD: SileroVAD (Tuned to 0.3s for real-time transcription feedback)
+- Turn Detection: LocalSmartTurnAnalyzerV3 (Semantic end-of-turn detection)
+- UI: RTVI-compatible WebRTC interface
+
+Usage:
+  python bot.py -t webrtc --host 0.0.0.0 --port 7860
+"""
 import os
 import sys
 
