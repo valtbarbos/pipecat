@@ -20,6 +20,6 @@ COPY . .
 
 # Install dependencies (ensure pipecat-ai is installed with necessary extras)
 # Using pip for simplicity in this specific Dockerfile as we might not have a full uv.lock setup in root matching this exactly
-RUN pip install -e ".[daily,openai,silero,webrtc,runner,whisper,local-smart-turn-v3]" && pip install faster-whisper
+RUN pip install -e ".[daily,openai,silero,webrtc,runner,whisper,local-smart-turn-v3,mem0,mcp]" && pip install faster-whisper
 
 CMD ["python", "bot.py"]
