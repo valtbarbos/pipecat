@@ -4,17 +4,26 @@ import sys
 from loguru import logger
 from dotenv import load_dotenv
 
+from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
 from pipecat.audio.vad.silero import SileroVADAnalyzer
-from pipecat.frames.frames import LLMMessagesFrame, EndFrame
+from pipecat.audio.vad.vad_analyzer import VADParams
+from pipecat.frames.frames import EndFrame, Frame, TranscriptionFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineTask, PipelineParams
-from pipecat.processors.aggregators.llm_response import LLMUserResponseAggregator
+from pipecat.processors.aggregators.llm_context import LLMContext
+from pipecat.processors.aggregators.llm_response_universal import (
+    LLMContextAggregatorPair,
+    LLMUserAggregatorParams,
+)
+from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.services.whisper.stt import WhisperSTTService
 from pipecat.services.xtts.tts import XTTSService
 from pipecat.transports.base_transport import TransportParams
 from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
+from pipecat.turns.bot import TurnAnalyzerBotTurnStartStrategy
+from pipecat.turns.turn_start_strategies import TurnStartStrategies
 
 from pipecat.runner.types import SmallWebRTCRunnerArguments, RunnerArguments
 
@@ -22,6 +31,16 @@ load_dotenv(override=True)
 
 logger.remove(0)
 logger.add(sys.stderr, level="DEBUG")
+
+class TranscriptionLogger(FrameProcessor):
+    async def process_frame(self, frame: Frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+
+        if isinstance(frame, TranscriptionFrame):
+            print(f"Transcription: {frame.text}")
+
+        # Push all frames through
+        await self.push_frame(frame, direction)
 
 async def bot(runner_args: RunnerArguments):
     webrtc_connection = None
@@ -37,7 +56,7 @@ async def bot(runner_args: RunnerArguments):
         params=TransportParams(
             audio_in_enabled=True,
             audio_out_enabled=True,
-            vad_analyzer=SileroVADAnalyzer(),
+            vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=0.2)),
         )
     )
 
@@ -64,18 +83,29 @@ async def bot(runner_args: RunnerArguments):
             }
         ]
 
-        tma_in = LLMUserResponseAggregator(messages)
-        tma_out = LLMUserResponseAggregator(messages)
+        context = LLMContext(messages)
+        context_aggregator = LLMContextAggregatorPair(
+            context,
+            user_params=LLMUserAggregatorParams(
+                turn_start_strategies=TurnStartStrategies(
+                    bot=[TurnAnalyzerBotTurnStartStrategy(turn_analyzer=LocalSmartTurnAnalyzerV3())]
+                ),
+            ),
+        )
+        
+        # Transcription logger
+        tl = TranscriptionLogger()
 
         pipeline = Pipeline(
             [
                 transport.input(),
                 stt,
-                tma_in,
+                tl,
+                context_aggregator.user(),
                 llm,
-                tma_out,
                 tts,
                 transport.output(),
+                context_aggregator.assistant(),
             ]
         )
 
