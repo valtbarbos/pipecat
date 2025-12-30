@@ -1,6 +1,6 @@
 # Running Pipecat Locally with Docker & GPU
 
-This guide details the local Docker implementation for running a fully GPU-accelerated Pipecat conversational AI agent. The setup is designed for privacy and performance, running all inference (ASR, LLM, TTS) locally on your machine.
+This guide details the local Docker implementation for running a fully GPU-accelerated Pipecat conversational AI agent. The setup is designed for privacy and performance, running all inference (ASR, LLM, TTS) locally on your machine, with "State Of The Art" (SOTA) features for interruption and natural turn-taking.
 
 ## Architecture
 
@@ -11,7 +11,9 @@ The system uses `docker-compose` to orchestrate three separate services, all com
 - **Runtime**: Python 3.12.
 - **Components**:
   - **Transport**: `SmallWebRTCTransport` (Default WebRTC implementation).
-  - **VAD**: `SileroVADAnalyzer` (Voice Activity Detection).
+  - **VAD**: `SileroVADAnalyzer` (Voice Activity Detection) with tuned stop parameters suitable for interruption.
+  - **Turn Analysis**: `LocalSmartTurnAnalyzerV3` (Advanced turn detection).
+  - **Frontend Integration**: `RTVIProcessor` and `RTVIObserver` (Real-Time Voice Interface for client-side events).
   - **STT**: `WhisperSTTService` (local `faster-whisper` inference).
   - **LLM Client**: `OpenAILLMService` (connects to the local Ollama service).
   - **TTS Client**: `XTTSService` (connects to the local XTTS service).
@@ -75,19 +77,24 @@ The compose file defines the interactions and resource allocations. Key configur
 
 ### `bot.py` Pipeline
 
-The `bot.py` script constructs the processing pipeline:
+The `bot.py` script constructs the processing pipeline, using `RTVIProcessor` for frontend communication and `LLMContextAggregatorPair` with `LocalSmartTurnAnalyzerV3` for advanced conversation management:
 
 ```python
-pipeline = Pipeline([
-    transport.input(),   # Mic input
-    stt,                 # Whisper STT (Local)
-    tma_in,              # Context Aggregator
-    llm,                 # Ollama LLM (Local via HTTP)
-    tma_out,             # Context Aggregator
-    tts,                 # XTTS TTS (Local via HTTP)
-    transport.output(),  # Speaker output
-])
+pipeline = Pipeline(
+    [
+        transport.input(),             # Mic input
+        rtvi,                          # RTVI Processor (Frontend events)
+        stt,                           # Whisper STT (Local)
+        context_aggregator.user(),     # User Context Aggregator
+        llm,                           # Ollama LLM (Local via HTTP)
+        tts,                           # XTTS TTS (Local via HTTP)
+        transport.output(),            # Speaker output
+        context_aggregator.assistant(),# Assistant Context Aggregator
+    ]
+)
 ```
+
+The `LLMContextAggregatorPair` is configured with `TurnStartStrategies` using `LocalSmartTurnAnalyzerV3` to accurately detect when the user has finished speaking or wishes to interrupt. `RTVIObserver` is attached to the task to funnel events back to the frontend.
 
 ## Operations
 
