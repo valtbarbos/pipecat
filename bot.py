@@ -66,27 +66,36 @@ async def bot(runner_args: RunnerArguments):
     )
 
     # 2. Services Setup
-    
+    logger.info("Initializing Whisper STT service...")
     # STT: Local Whisper (running on GPU in this container)
     # Using Large V3 Turbo for SOTA punctuation and accuracy on RTX 4090
-    stt = WhisperSTTService(model=Model.LARGE_V3_TURBO, device="cuda", no_speech_prob=0.4)
+    # WRAPPING IN THREAD prevents blocking the event loop during model download/load!
+    import asyncio
+    stt = await asyncio.to_thread(
+        lambda: WhisperSTTService(model=Model.LARGE_V3_TURBO, device="cuda", no_speech_prob=0.4)
+    )
+    logger.info("Whisper STT service initialized.")
 
     # LLM: Ollama (Local) running Gemma 3
     # Note: Ensure you have run `ollama pull gemma3:27b`
+    logger.info("Initializing LLM service...")
     llm = OpenAILLMService(
         api_key=os.getenv("OPENAI_API_KEY", "ollama"),
         base_url=os.getenv("OPENAI_API_BASE", "http://localhost:11434/v1"),
         model=os.getenv("LLM_MODEL", "gemma3:27b"), 
     )
+    logger.info("LLM service initialized.")
 
     # TTS: XTTS (Local)
     import aiohttp
     async with aiohttp.ClientSession() as session:
+        logger.info("Initializing TTS service...")
         tts = XTTSService(
             voice_id="Claribel Dervla",
             base_url="http://localhost:8000",
             aiohttp_session=session,
         )
+        logger.info("TTS service initialized.")
 
         # 3. Memory Setup (Mem0)
         memory = None
@@ -142,6 +151,7 @@ async def bot(runner_args: RunnerArguments):
         context_aggregator = LLMContextAggregatorPair(
             context,
             user_params=LLMUserAggregatorParams(
+                user_turn_end_timeout=0.5,
                 turn_start_strategies=TurnStartStrategies(
                     # SOTA: Analyzing the meaning of the turn (complete vs incomplete)
                     bot=[TurnAnalyzerBotTurnStartStrategy(turn_analyzer=LocalSmartTurnAnalyzerV3())]
@@ -186,12 +196,16 @@ async def bot(runner_args: RunnerArguments):
             await rtvi.set_bot_ready()
             
             # Signals to the frontend
-            messages = {
+            messages_rtvi = {
                 "show_text_container": True,
                 "show_debug_container": True, # Enabled for SOTA analysis
             }
-            rtvi_frame = RTVIServerMessageFrame(data=messages)
+            rtvi_frame = RTVIServerMessageFrame(data=messages_rtvi)
             await task.queue_frames([rtvi_frame])
+            
+            # Kick off the conversation
+            messages.append({"role": "system", "content": "Please introduce yourself to the user."})
+            await task.queue_frames([LLMRunFrame()])
 
         @transport.event_handler("on_client_connected")
         async def on_client_connected(transport, client):

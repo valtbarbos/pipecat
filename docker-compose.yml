@@ -29,6 +29,13 @@ services:
 
   pipecat:
     build: .
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     volumes:
       - .:/app
       - ~/.cache/huggingface:/root/.cache/huggingface
