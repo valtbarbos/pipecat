@@ -23,7 +23,7 @@ from pipecat.processors.frameworks.rtvi import (
     RTVIServerMessageFrame,
 )
 from pipecat.services.openai.llm import OpenAILLMService
-from pipecat.services.whisper.stt import WhisperSTTService
+from pipecat.services.whisper.stt import Model, WhisperSTTService
 from pipecat.services.xtts.tts import XTTSService
 from pipecat.transports.base_transport import TransportParams
 from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
@@ -61,21 +61,22 @@ async def bot(runner_args: RunnerArguments):
             audio_out_enabled=True,
             camera_in_enabled=True,
             camera_out_enabled=True,
-            vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=0.2)), # Fast interruption
+            vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=0.8)), # Relaxed for Smart Turn
         )
     )
 
     # 2. Services Setup
     
     # STT: Local Whisper (running on GPU in this container)
-    stt = WhisperSTTService(model="small") # Better than tiny, fits in 4090 easily
+    # Using Large V3 Turbo for SOTA punctuation and accuracy on RTX 4090
+    stt = WhisperSTTService(model=Model.LARGE_V3_TURBO, device="cuda", no_speech_prob=0.4)
 
-    # LLM: Ollama (Local) running Gemma 2
-    # Note: Ensure you have run `ollama pull gemma2:27b`
+    # LLM: Ollama (Local) running Gemma 3
+    # Note: Ensure you have run `ollama pull gemma3:27b`
     llm = OpenAILLMService(
         api_key=os.getenv("OPENAI_API_KEY", "ollama"),
         base_url=os.getenv("OPENAI_API_BASE", "http://localhost:11434/v1"),
-        model=os.getenv("LLM_MODEL", "gemma2:27b"), 
+        model=os.getenv("LLM_MODEL", "gemma3:27b"), 
     )
 
     # TTS: XTTS (Local)
@@ -105,7 +106,7 @@ async def bot(runner_args: RunnerArguments):
             #     "llm": {
             #         "provider": "openai",
             #         "config": {
-            #             "model": "gemma2:27b",
+            #             "model": "gemma3:27b",
             #             "openai_base_url": "http://localhost:11434/v1",
             #             "api_key": "ollama"
             #         }
@@ -122,10 +123,18 @@ async def bot(runner_args: RunnerArguments):
                 logger.warning("MEM0_API_KEY not found. Skipping memory layer for this run.")
 
         # 4. Context & Flow Control
+        # SOTA System Prompt
         messages = [
             {
                 "role": "system",
-                "content": "You are a helpful, intelligent personal assistant running locally. You are conversational, concise, and helpful.",
+                "content": (
+                    "You are a highly intelligent, conversational AI. "
+                    "Your responses are synthesized into speech, so adhering to these rules is strict:\n"
+                    "1. **Conciseness**: Speak naturally but briefly. Avoid lists and markdown formatting.\n"
+                    "2. **Flow**: Do not use 'As an AI' disclaimers. Act with agency.\n"
+                    "3. **Vision**: You can see images provided by the user. Describe them naturally if asked.\n"
+                    "4. **Personality**: Be helpful, quick-witted, and precise."
+                ),
             }
         ]
 

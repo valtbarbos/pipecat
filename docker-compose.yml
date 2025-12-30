@@ -35,8 +35,8 @@ services:
     environment:
       - OPENAI_API_KEY=ollama
       - OPENAI_API_BASE=http://localhost:11434/v1
-      - LLM_MODEL=tinyllama
-      # ALTERNATIVE: - LLM_MODEL=gemma3:27b
+      # ALTERNATIVE: - LLM_MODEL=tinyllama
+      - LLM_MODEL=gemma3:27b
       - MEM0_API_KEY= # Add your Mem0 API key here, or configure local/qdrant in sota_bot.py
     network_mode: host
     depends_on:
