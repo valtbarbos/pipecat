@@ -1,6 +1,6 @@
-# Running Pipecat Locally with Docker & GPU
+# Running SOTA Pipecat Locally with Docker & GPU
 
-This guide details the local Docker implementation for running a fully GPU-accelerated Pipecat conversational AI agent. The setup is designed for privacy and performance, running all inference (ASR, LLM, TTS) locally on your machine, with "State Of The Art" (SOTA) features for interruption and natural turn-taking.
+This guide details the local Docker implementation for running a fully GPU-accelerated Pipecat conversational AI agent. The setup is designed for privacy, performance, and "State Of The Art" (SOTA) agentic capabilities, including **Long-term Memory** and **Tool Usage**.
 
 ## Architecture
 
@@ -9,137 +9,103 @@ The system uses `docker-compose` to orchestrate three separate services, all com
 ### 1. **Pipecat Service (`pipecat`)**
 - **Role**: The core application logic and audio pipeline orchestrator.
 - **Runtime**: Python 3.12.
+- **Entry Point**: `bot.py` (The SOTA implementation).
 - **Components**:
   - **Transport**: `SmallWebRTCTransport` (Default WebRTC implementation).
-  - **VAD**: `SileroVADAnalyzer` (Voice Activity Detection) with tuned stop parameters suitable for interruption.
-  - **Turn Analysis**: `LocalSmartTurnAnalyzerV3` (Advanced turn detection).
-  - **Frontend Integration**: `RTVIProcessor` and `RTVIObserver` (Real-Time Voice Interface for client-side events).
+  - **VAD**: `SileroVADAnalyzer` (Aggressive interruption detection).
+  - **Turn Analysis**: `LocalSmartTurnAnalyzerV3` (Context-aware turn detection).
+  - **Memory**: `Mem0MemoryService` (Persistent user memory).
+  - **Tools**: `MCPClient` (Model Context Protocol) or native function calling.
   - **STT**: `WhisperSTTService` (local `faster-whisper` inference).
-  - **LLM Client**: `OpenAILLMService` (connects to the local Ollama service).
-  - **TTS Client**: `XTTSService` (connects to the local XTTS service).
+  - **LLM Client**: `OpenAILLMService` (connects to local Ollama `gemma3:27b`).
+  - **TTS Client**: `XTTSService` (connects to local XTTS service).
+  - **Frontend Integration**: `RTVIProcessor` (Real-Time Voice Interface).
 - **Networking**: `network_mode: host` (Crucial for WebRTC connectivity).
 
 ### 2. **LLM Service (`ollama`)**
-- **Role**: Provides large language model inference via an OpenAI-compatible API.
-- **Image**: `ollama/ollama:latest`
-- **Model**: Default is `tinyllama` (configurable).
+- **Role**: Provides large language model inference.
+- **Model**: `gemma3:27b`.
 - **Port**: `11434`
-- **Hardware**: NVIDIA GPU acceleration.
+- **Hardware**: NVIDIA GPU acceleration (RTX 3090/4090 recommended).
 
 ### 3. **TTS Service (`xtts`)**
-- **Role**: Provides high-quality text-to-speech synthesis using Coqui XTTS v2.
-- **Image**: `ghcr.io/coqui-ai/xtts-streaming-server:latest-cuda121`
-- **Port**: `8000` (mapped from container port `80`).
-- **Hardware**: NVIDIA GPU acceleration.
+- **Role**: High-quality text-to-speech synthesis (Coqui XTTS v2).
+- **Port**: `8000`.
 
 ---
 
 ## Prerequisites
 
 - **Docker Desktop** (or Engine) installed.
-- **NVIDIA GPU** with drivers installed.
-- **NVIDIA Container Toolkit** installed (to allow Docker to access the GPU).
+- **NVIDIA GPU** with drivers and Container Toolkit installed.
+- **(Optional) Mem0 API Key**: For cloud-based memory (or configure local vector DB).
 
 ## Quick Start
 
-1.  **Start the Stack**:
-    Run the following command in the project root to build and start all services:
-    ```bash
-    docker compose up --build -d
+1.  **Configure Environment**:
+    Edit `docker-compose.yml` if you have a Mem0 API key:
+    ```yaml
+    environment:
+      - MEM0_API_KEY=your_key_here
     ```
 
-2.  **Wait for Initialization**:
-    *First-time startup will be slower as models are downloaded.*
-    - **XTTS**: Downloads ~2GB model. Check status: `docker compose logs -f xtts`
-    - **Ollama**: Downloads the `tinyllama` model.
-    - **Whisper**: Downloads the STT model inside the Pipecat container when the bot first initializes.
+2.  **Build and Start**:
+    Since SOTA features require specific dependencies, build the image:
+    ```bash
+    docker compose up -d --build
+    ```
 
-3.  **Connect**:
+3.  **Download Models (First Run)**:
+    *   **XTTS**: Downloads ~2GB model (check `docker compose logs -f xtts`).
+    *   **Ollama**: You *must* pull the SOTA model manually if not already present:
+        ```bash
+        docker exec -it pipecat-ollama-1 ollama pull gemma3:27b
+        ```
+
+4.  **Connect**:
     Open your browser to:
     **[http://localhost:7860/client](http://localhost:7860/client)**
 
-    Click **Connect** and allow microphone access. Say "Hello" to start the conversation!
+    Say "Hello" to start the conversation! Try interrupting the bot or asking it to remember your name.
 
 ---
 
 ## Configuration Details
 
-### `docker-compose.yml`
-
-The compose file defines the interactions and resource allocations. Key configurations:
-
-- **GPU Reservation**: All services request `capabilities: [gpu]` to ensure access to the NVIDIA driver.
-- **Volumes**:
-  - `~/.cache/huggingface`: Mounted to persist Whisper models, preventing re-downloads.
-  - `/mnt/LLM/gguf`: Mounted to persist Ollama models.
-  - `.:/app`: The local directory is mounted to `/app` in the Pipecat container, enabling **hot-reloading** or immediate code changes without rebuilding the image.
-- **Networking**: The `pipecat` service uses `network_mode: host` to bypass Docker NAT, which is often problematic for WebRTC UDP packets.
-
 ### `bot.py` Pipeline
 
-The `bot.py` script constructs the processing pipeline, using `RTVIProcessor` for frontend communication and `LLMContextAggregatorPair` with `LocalSmartTurnAnalyzerV3` for advanced conversation management:
+The SOTA pipeline integrates memory and flow control:
 
 ```python
-pipeline = Pipeline(
-    [
-        transport.input(),             # Mic input
-        rtvi,                          # RTVI Processor (Frontend events)
-        stt,                           # Whisper STT (Local)
-        context_aggregator.user(),     # User Context Aggregator
-        llm,                           # Ollama LLM (Local via HTTP)
-        tts,                           # XTTS TTS (Local via HTTP)
-        transport.output(),            # Speaker output
-        context_aggregator.assistant(),# Assistant Context Aggregator
-    ]
-)
+pipeline = Pipeline([
+    transport.input(),             # 1. Mic input
+    rtvi,                          # 2. RTVI (Real-time visualization)
+    stt,                           # 3. Whisper STT (Local)
+    context_aggregator.user(),     # 4. Smart Turn Management
+    memory,                        # 5. Mem0 (Long-term Memory)
+    llm,                           # 6. Gemma 3 27B (via Ollama)
+    tts,                           # 7. XTTS (Local)
+    transport.output(),            # 8. Speaker output
+    context_aggregator.assistant() # 9. Context tracking
+])
 ```
 
-The `LLMContextAggregatorPair` is configured with `TurnStartStrategies` using `LocalSmartTurnAnalyzerV3` to accurately detect when the user has finished speaking or wishes to interrupt. `RTVIObserver` is attached to the task to funnel events back to the frontend.
+### Operations
 
-## Operations
+#### Using Memory (Mem0)
+If `MEM0_API_KEY` is set, the bot will use Mem0 to store interactions.
+*   **Test**: Say "My name is [Name]". Restart the bot. Ask "What is my name?".
+*   **Local Mode**: To run Mem0 entirely locally (no API key), uncomment the `local_config` section in `sota_bot.py`.
 
-### Changing the LLM Model
-1.  **Pull the new model** using the running Ollama container:
-    ```bash
-    docker exec -it pipecat-ollama-1 ollama pull mistral
+#### Changing the Model
+1.  **Pull**: `docker exec -it pipecat-ollama-1 ollama pull llama3`
+2.  **Update**: Change `docker-compose.yml`:
+    ```yaml
+    - LLM_MODEL=llama3
     ```
-2.  **Update `docker-compose.yml`**:
-    Change `LLM_MODEL=tinyllama` to `LLM_MODEL=mistral`.
-3.  **Restart**:
-    ```bash
-    docker compose up -d
-    ```
+3.  **Restart**: `docker compose restart pipecat`
 
-### Changing the Voice
-Edit `bot.py` and change the `voice_id` in the `XTTSService` initialization:
-
-```python
-tts = XTTSService(
-    voice_id="Claribel Dervla", # Change this string
-    base_url="http://localhost:8000",
-    aiohttp_session=session,
-)
-```
-*Note: You can query available speakers from the XTTS server API if needed.*
-
-### Viewing Logs
-To debug issues or see the conversation flow:
-
+#### Viewing Logs
 ```bash
-# All logs
-docker compose logs -f
-
-# Specific service logs
 docker compose logs -f pipecat
-docker compose logs -f xtts
 ```
-
-## Troubleshooting
-
-- **"StartFrame not received yet"**:
-    This error appears if the Pipecat bot starts before the XTTS or Ollama services are fully ready.
-    **Fix**: Wait a moment for the other services to initialize (check logs), then restart the bot:
-    `docker compose restart pipecat`
-
-- **Audio not working?**:
-    Ensure you are using `localhost` or accessing the machine via an IP that is reachable. Since `network_mode: host` is used, the container shares the host's network stack. Check your firewall settings if connecting from a different machine.

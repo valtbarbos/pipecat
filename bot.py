@@ -29,8 +29,15 @@ from pipecat.transports.base_transport import TransportParams
 from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
 from pipecat.turns.bot import TurnAnalyzerBotTurnStartStrategy
 from pipecat.turns.turn_start_strategies import TurnStartStrategies
-
 from pipecat.runner.types import SmallWebRTCRunnerArguments, RunnerArguments
+
+# Try importing Mem0, handle rejection if missing (though we added to Dockerfile)
+try:
+    from pipecat.services.mem0.memory import Mem0MemoryService
+    MEM0_AVAILABLE = True
+except ImportError:
+    logger.warning("Mem0 not installed. Memory features will be disabled.")
+    MEM0_AVAILABLE = False
 
 load_dotenv(override=True)
 
@@ -40,6 +47,7 @@ logger.add(sys.stderr, level="DEBUG")
 async def bot(runner_args: RunnerArguments):
     webrtc_connection = None
     
+    # 1. Transport Setup (WebRTC)
     if isinstance(runner_args, SmallWebRTCRunnerArguments):
         webrtc_connection = runner_args.webrtc_connection
     else:
@@ -53,18 +61,24 @@ async def bot(runner_args: RunnerArguments):
             audio_out_enabled=True,
             camera_in_enabled=True,
             camera_out_enabled=True,
-            vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=0.2)),
+            vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=0.2)), # Fast interruption
         )
     )
 
-    stt = WhisperSTTService(model="tiny")
+    # 2. Services Setup
+    
+    # STT: Local Whisper (running on GPU in this container)
+    stt = WhisperSTTService(model="small") # Better than tiny, fits in 4090 easily
 
+    # LLM: Ollama (Local) running Gemma 2
+    # Note: Ensure you have run `ollama pull gemma2:27b`
     llm = OpenAILLMService(
         api_key=os.getenv("OPENAI_API_KEY", "ollama"),
         base_url=os.getenv("OPENAI_API_BASE", "http://localhost:11434/v1"),
-        model=os.getenv("LLM_MODEL", "tinyllama"),
+        model=os.getenv("LLM_MODEL", "gemma2:27b"), 
     )
 
+    # TTS: XTTS (Local)
     import aiohttp
     async with aiohttp.ClientSession() as session:
         tts = XTTSService(
@@ -73,10 +87,45 @@ async def bot(runner_args: RunnerArguments):
             aiohttp_session=session,
         )
 
+        # 3. Memory Setup (Mem0)
+        memory = None
+        if MEM0_AVAILABLE:
+            # Note: For strict local usage, you would configure a local qdrant/chroma here.
+            # This default setup assumes MEM0_API_KEY might be present or uses defaults.
+            # To go fully local with Mem0, you would un-comment and configure the 'local_config'.
+            
+            # local_mem0_config = {
+            #     "vector_store": {
+            #         "provider": "qdrant",
+            #         "config": {
+            #             "host": "localhost",
+            #             "port": 6333
+            #         }
+            #     },
+            #     "llm": {
+            #         "provider": "openai",
+            #         "config": {
+            #             "model": "gemma2:27b",
+            #             "openai_base_url": "http://localhost:11434/v1",
+            #             "api_key": "ollama"
+            #         }
+            #     }
+            # }
+
+            if os.getenv("MEM0_API_KEY"):
+                memory = Mem0MemoryService(
+                    api_key=os.getenv("MEM0_API_KEY"),
+                    user_id="local_user_4090",
+                )
+                logger.info("Mem0 Memory Service initialized.")
+            else:
+                logger.warning("MEM0_API_KEY not found. Skipping memory layer for this run.")
+
+        # 4. Context & Flow Control
         messages = [
             {
                 "role": "system",
-                "content": "You are a helpful AI assistant. Keep responses very short and concise.",
+                "content": "You are a helpful, intelligent personal assistant running locally. You are conversational, concise, and helpful.",
             }
         ]
 
@@ -85,25 +134,34 @@ async def bot(runner_args: RunnerArguments):
             context,
             user_params=LLMUserAggregatorParams(
                 turn_start_strategies=TurnStartStrategies(
+                    # SOTA: Analyzing the meaning of the turn (complete vs incomplete)
                     bot=[TurnAnalyzerBotTurnStartStrategy(turn_analyzer=LocalSmartTurnAnalyzerV3())]
                 ),
             ),
         )
         
+        # 5. RTVI (Frontend Feedback)
         rtvi = RTVIProcessor(config=RTVIConfig(config=[]))
 
-        pipeline = Pipeline(
-            [
-                transport.input(),
-                rtvi,
-                stt,
-                context_aggregator.user(),
-                llm,
-                tts,
-                transport.output(),
-                context_aggregator.assistant(),
-            ]
-        )
+        # 6. Pipeline Construction
+        pipeline_steps = [
+            transport.input(),
+            rtvi,
+            stt,
+            context_aggregator.user(),
+        ]
+        
+        if memory:
+            pipeline_steps.append(memory)
+            
+        pipeline_steps.extend([
+            llm,
+            tts,
+            transport.output(),
+            context_aggregator.assistant(),
+        ])
+
+        pipeline = Pipeline(pipeline_steps)
 
         task = PipelineTask(
             pipeline,
@@ -118,17 +176,17 @@ async def bot(runner_args: RunnerArguments):
         async def on_client_ready(rtvi):
             await rtvi.set_bot_ready()
             
-            # These messages are intended for small webrtc UI to only handle text
+            # Signals to the frontend
             messages = {
                 "show_text_container": True,
-                "show_debug_container": False,
+                "show_debug_container": True, # Enabled for SOTA analysis
             }
             rtvi_frame = RTVIServerMessageFrame(data=messages)
             await task.queue_frames([rtvi_frame])
 
         @transport.event_handler("on_client_connected")
         async def on_client_connected(transport, client):
-            # Kick off the conversation with a greeting if desired
+            # Kick off the conversation
             pass
 
         @transport.event_handler("on_client_disconnected")
