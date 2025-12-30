@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADParams
-from pipecat.frames.frames import EndFrame, Frame, TranscriptionFrame
+from pipecat.frames.frames import EndFrame, LLMRunFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineTask, PipelineParams
@@ -16,7 +16,12 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMContextAggregatorPair,
     LLMUserAggregatorParams,
 )
-from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
+from pipecat.processors.frameworks.rtvi import (
+    RTVIConfig,
+    RTVIObserver,
+    RTVIProcessor,
+    RTVIServerMessageFrame,
+)
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.services.whisper.stt import WhisperSTTService
 from pipecat.services.xtts.tts import XTTSService
@@ -32,16 +37,6 @@ load_dotenv(override=True)
 logger.remove(0)
 logger.add(sys.stderr, level="DEBUG")
 
-class TranscriptionLogger(FrameProcessor):
-    async def process_frame(self, frame: Frame, direction: FrameDirection):
-        await super().process_frame(frame, direction)
-
-        if isinstance(frame, TranscriptionFrame):
-            print(f"Transcription: {frame.text}")
-
-        # Push all frames through
-        await self.push_frame(frame, direction)
-
 async def bot(runner_args: RunnerArguments):
     webrtc_connection = None
     
@@ -56,6 +51,8 @@ async def bot(runner_args: RunnerArguments):
         params=TransportParams(
             audio_in_enabled=True,
             audio_out_enabled=True,
+            camera_in_enabled=True,
+            camera_out_enabled=True,
             vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=0.2)),
         )
     )
@@ -93,14 +90,13 @@ async def bot(runner_args: RunnerArguments):
             ),
         )
         
-        # Transcription logger
-        tl = TranscriptionLogger()
+        rtvi = RTVIProcessor(config=RTVIConfig(config=[]))
 
         pipeline = Pipeline(
             [
                 transport.input(),
+                rtvi,
                 stt,
-                tl,
                 context_aggregator.user(),
                 llm,
                 tts,
@@ -115,15 +111,24 @@ async def bot(runner_args: RunnerArguments):
                 allow_interruptions=True,
                 enable_metrics=True,
             ),
+            observers=[RTVIObserver(rtvi)],
         )
+
+        @rtvi.event_handler("on_client_ready")
+        async def on_client_ready(rtvi):
+            await rtvi.set_bot_ready()
+            
+            # These messages are intended for small webrtc UI to only handle text
+            messages = {
+                "show_text_container": True,
+                "show_debug_container": False,
+            }
+            rtvi_frame = RTVIServerMessageFrame(data=messages)
+            await task.queue_frames([rtvi_frame])
 
         @transport.event_handler("on_client_connected")
         async def on_client_connected(transport, client):
-            # Allow the user to speak first, or just say a fixed hello.
-            # Avoid triggering the LLM with "User connected" as it may hallucinate.
-            # If we want a greeting, we can inject it.
-            # For now, let's keep it silent on connect to prevent the "non-stop talking" issue 
-            # allowing the user to say "Hello" and see if STT works.
+            # Kick off the conversation with a greeting if desired
             pass
 
         @transport.event_handler("on_client_disconnected")
