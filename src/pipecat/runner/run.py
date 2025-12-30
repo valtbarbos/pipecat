@@ -1011,6 +1011,10 @@ def main():
         dialin_enabled=args.dialin,
     )
 
+    # Debug: Log all registered routes
+    for route in app.routes:
+        logger.info(f"Route: {route.path} [{route.name}]")
+
     # Run the server
     uvicorn.run(app, host=args.host, port=args.port)
 

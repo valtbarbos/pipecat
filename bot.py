@@ -61,7 +61,7 @@ async def bot(runner_args: RunnerArguments):
             audio_out_enabled=True,
             camera_in_enabled=True,
             camera_out_enabled=True,
-            vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=0.8)), # Relaxed for Smart Turn
+            vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=0.3)), # Aggressive VAD for faster transcription feedback
         )
     )
 
@@ -137,12 +137,19 @@ async def bot(runner_args: RunnerArguments):
             {
                 "role": "system",
                 "content": (
-                    "You are a highly intelligent, conversational AI. "
-                    "Your responses are synthesized into speech, so adhering to these rules is strict:\n"
-                    "1. **Conciseness**: Speak naturally but briefly. Avoid lists and markdown formatting.\n"
-                    "2. **Flow**: Do not use 'As an AI' disclaimers. Act with agency.\n"
-                    "3. **Vision**: You can see images provided by the user. Describe them naturally if asked.\n"
-                    "4. **Personality**: Be helpful, quick-witted, and precise."
+                    "You are an expert English Assistant specialized in grammar analysis and natural communication. "
+                    "For EVERY user message, you must follow this exact pattern:\n\n"
+                    "1. **Grammar Analysis**: First, analyze the user's message for grammar, style, and clarity.\n"
+                    "2. **Provide Feedback**: Offer two alternative ways to express the same message:\n"
+                    "   - A more sophisticated/formal version\n"
+                    "   - A more casual/conversational version\n"
+                    "3. **Then Respond**: After providing this feedback, answer the user's message naturally.\n\n"
+                    "Important guidelines:\n"
+                    "- Be encouraging and constructive in your feedback.\n"
+                    "- Keep feedback concise and focused on meaningful improvements.\n"
+                    "- When responding to their message, speak naturally and helpfully.\n"
+                    "- Do not use markdown formatting in your spoken responses.\n"
+                    "- Always maintain a friendly, supportive tone."
                 ),
             }
         ]
@@ -151,7 +158,7 @@ async def bot(runner_args: RunnerArguments):
         context_aggregator = LLMContextAggregatorPair(
             context,
             user_params=LLMUserAggregatorParams(
-                user_turn_end_timeout=0.5,
+                user_turn_end_timeout=0.5, # Fallback if strategies don't trigger
                 turn_start_strategies=TurnStartStrategies(
                     # SOTA: Analyzing the meaning of the turn (complete vs incomplete)
                     bot=[TurnAnalyzerBotTurnStartStrategy(turn_analyzer=LocalSmartTurnAnalyzerV3())]
@@ -206,6 +213,10 @@ async def bot(runner_args: RunnerArguments):
             # Kick off the conversation
             messages.append({"role": "system", "content": "Please introduce yourself to the user."})
             await task.queue_frames([LLMRunFrame()])
+
+        @context_aggregator.user().event_handler("on_bot_turn_started")
+        async def on_bot_turn_started(aggregator, strategy):
+            logger.info(f"Bot turn started by strategy: {strategy}")
 
         @transport.event_handler("on_client_connected")
         async def on_client_connected(transport, client):
