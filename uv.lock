@@ -4006,6 +4006,9 @@ openpipe = [
 playht = [
     { name = "websockets" },
 ]
+resembleai = [
+    { name = "websockets" },
+]
 rime = [
     { name = "websockets" },
 ]
@@ -4169,6 +4172,7 @@ requires-dist = [
     { name = "pipecat-ai", extras = ["websockets-base"], marker = "extra == 'neuphonic'" },
     { name = "pipecat-ai", extras = ["websockets-base"], marker = "extra == 'openai'" },
     { name = "pipecat-ai", extras = ["websockets-base"], marker = "extra == 'playht'" },
+    { name = "pipecat-ai", extras = ["websockets-base"], marker = "extra == 'resembleai'" },
     { name = "pipecat-ai", extras = ["websockets-base"], marker = "extra == 'rime'" },
     { name = "pipecat-ai", extras = ["websockets-base"], marker = "extra == 'sarvam'" },
     { name = "pipecat-ai", extras = ["websockets-base"], marker = "extra == 'soniox'" },
