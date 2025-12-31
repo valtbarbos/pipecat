@@ -63,7 +63,7 @@ The system uses `docker-compose` to orchestrate three services with full NVIDIA 
 
 The current `bot.py` is tuned for a "premium" conversational feel:
 - **Immediate Transcription**: By setting VAD `stop_secs=0.3`, words appear in the UI almost as soon as you say them.
-- **Semantic Silence**: We use a `user_turn_end_timeout` of **0.5s**. This means the bot will only think for half a second after you stop speaking before the `LocalSmartTurnAnalyzerV3` decides if your sentence was complete or just a pause.
+- **Semantic Silence**: We use a `user_turn_end_timeout` of **0.7s**. This means the bot will wait a bit longer after you stop speaking before the `LocalSmartTurnAnalyzerV3` decides if your sentence was complete or just a pause, reducing false interruptions.
 
 ---
 
@@ -104,8 +104,8 @@ If using `chatterbox`, the following variables also apply:
 
 You can tune the trade-off between TTS speed and naturalness using `TTS_TEXT_AGGREGATOR`:
 
-- `space_aware` (Default): Streaming is optimized for speed. Starts speaking on the first space/newline after a sentence end. **Lowest Latency**, but might chop sentences if the LLM pauses mid-thought.
-- `sentence`: Standard sentence buffering. Waits for the *next* sentence's first character to confirm the current one ended. **Better Stability**, slightly higher latency.
+- `sentence` (Default): Standard sentence buffering. Waits for the *next* sentence's first character to confirm the current one ended. **Better Stability**, natural-sounding speech.
+- `space_aware`: Streaming is optimized for speed. Starts speaking on the first space/newline after a sentence end. **Lower Latency**, but might chop sentences if the LLM pauses mid-thought.
 - `none`: No aggregation. Streams tokens directly to TTS. **Experimental**, might cause "robotic" or jittery audio artifacts.
 
 To change it, update your `.env` or `docker-compose.yml`:

@@ -242,7 +242,7 @@ async def bot(runner_args: RunnerArguments):
         context_aggregator = LLMContextAggregatorPair(
             context,
             user_params=LLMUserAggregatorParams(
-                user_turn_stop_timeout=0.5, # Fallback if strategies don't trigger
+                user_turn_stop_timeout=0.7, # Fallback if strategies don't trigger
                 user_turn_strategies=UserTurnStrategies(
                     # SOTA: Analyzing the meaning of the turn (complete vs incomplete)
                     stop=[TurnAnalyzerUserTurnStopStrategy(turn_analyzer=LocalSmartTurnAnalyzerV3())]
