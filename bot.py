@@ -43,8 +43,8 @@ from pipecat.services.whisper.stt import Model, WhisperSTTService
 from pipecat.services.xtts.tts import XTTSService
 from pipecat.transports.base_transport import TransportParams
 from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
-from pipecat.turns.bot import TurnAnalyzerBotTurnStartStrategy
-from pipecat.turns.turn_start_strategies import TurnStartStrategies
+from pipecat.turns.user_stop import TurnAnalyzerUserTurnStopStrategy
+from pipecat.turns.user_turn_strategies import UserTurnStrategies
 from pipecat.runner.types import SmallWebRTCRunnerArguments, RunnerArguments
 
 # Try importing Mem0, handle rejection if missing (though we added to Dockerfile)
@@ -172,10 +172,10 @@ async def bot(runner_args: RunnerArguments):
         context_aggregator = LLMContextAggregatorPair(
             context,
             user_params=LLMUserAggregatorParams(
-                user_turn_end_timeout=0.5, # Fallback if strategies don't trigger
-                turn_start_strategies=TurnStartStrategies(
+                user_turn_stop_timeout=0.5, # Fallback if strategies don't trigger
+                user_turn_strategies=UserTurnStrategies(
                     # SOTA: Analyzing the meaning of the turn (complete vs incomplete)
-                    bot=[TurnAnalyzerBotTurnStartStrategy(turn_analyzer=LocalSmartTurnAnalyzerV3())]
+                    stop=[TurnAnalyzerUserTurnStopStrategy(turn_analyzer=LocalSmartTurnAnalyzerV3())]
                 ),
             ),
         )
