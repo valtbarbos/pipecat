@@ -14,15 +14,20 @@ The system uses `docker-compose` to orchestrate three services with full NVIDIA 
   - **VAD (Real-time Feedback)**: `SileroVAD` tuned to **0.3s** to provide immediate transcription feedback on the UI.
   - **Turn Analysis**: `LocalSmartTurnAnalyzerV3` provides semantic conversation control; it prevents the bot from interrupting you even during long thinking pauses.
   - **LLM Client**: `OpenAILLMService` (connects to local Ollama `qwen2.5:14b`).
-  - **TTS Client**: `XTTSService` (connects to local XTTS service).
+  - **TTS Clients**:
+    - `XTTSService`: Connects to local Coqui XTTS service.
+    - `ChatterBox`: High-performance streaming TTS integration via the `ResembleAITTSService` protocol (pointing to our local `chatterbox` service).
+  - **Dynamic Configuration**: `TTS_SERVICE` allows switching between providers at runtime.
   - **Memory**: `Mem0MemoryService` (ready for persistent user context).
+  - **Externalized Instructions**: `SYSTEM_PROMPT_PATH` points to a Markdown file (e.g., `instructions.md`) for easy persona management.
 
 ### 2. **LLM Service (`ollama`)**
 - **Role**: Provides the "brain" using **Qwen 2.5 14B**.
 - **Hardware**: Full GPU acceleration via `nvidia-container-toolkit`.
 
-### 3. **TTS Service (`xtts`)**
-- **Role**: Coqui XTTS v2 for natural, expressive voice synthesis.
+### 3. **TTS Services**
+- **XTTS (`xtts`)**: Coqui XTTS v2 for deep, high-quality voice cloning and expressive synthesis.
+- **ChatterBox (`chatterbox`)**: Optimized real-time TTS server providing ultra-low latency streaming audio over WebSockets.
 
 ---
 
@@ -48,6 +53,9 @@ The system uses `docker-compose` to orchestrate three services with full NVIDIA 
 
 3.  **Access the Dashboard**:
     Open **[http://localhost:7860/client](http://localhost:7860/client)**.
+
+4.  **Managing the Persona**:
+    Edit `instructions.md` to change the bot's behavior without restarting the container (the bot reads this file on every new session).
 
 ---
 
@@ -78,8 +86,19 @@ The local XTTS service comes with 52 pre-defined "Studio" voices. You can change
 
 4. Restart the stack:
    ```bash
-    docker compose up -d
+    docker compose restart pipecat
     ```
+
+## Selecting the TTS Service
+
+You can switch between the two available TTS engines via environment variables in `.env` or `docker-compose.yml`:
+
+- `TTS_SERVICE=xtts` (Default): Uses the Coqui XTTS server. Reliable, high-quality, many voices.
+- `TTS_SERVICE=chatterbox`: Uses the ChatterBox server via its streaming WebSocket endpoint. **Recommended for the lowest latency.**
+
+If using `chatterbox`, the following variables also apply:
+- `CHATTERBOX_URL`: The WebSocket endpoint (default: `ws://localhost:8004/stream`).
+- `TTS_VOICE`: The name of the voice file in the chatterbox `voices/` directory (e.g., `Emily`, `Adrian`).
 
 ## Latency vs Quality Configuration
 
@@ -109,8 +128,10 @@ If you see `libcudnn_ops.so` or `cudnnCreateTensorDescriptor` errors:
 
 ### No Transcription / Agent Silent
 1. Check Ollama is running and model is pulled: `docker logs pipecat-ollama-1`.
-2. Check XTTS initialization: `docker logs pipecat-xtts-1`.
-3. Check Pipecat logs for WebRTC connection status:
+2. Check your selected TTS service:
+   - For XTTS: `docker logs pipecat-xtts-1`
+   - For ChatterBox: `docker logs pipecat-chatterbox-1`
+3. Check Pipecat logs for WebRTC connection status and TTS initialization:
    ```bash
    docker logs -f pipecat-pipecat-1
    ```
