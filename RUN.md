@@ -78,8 +78,21 @@ The local XTTS service comes with 52 pre-defined "Studio" voices. You can change
 
 4. Restart the stack:
    ```bash
-   docker compose up -d
-   ```
+    docker compose up -d
+    ```
+
+## Latency vs Quality Configuration
+
+You can tune the trade-off between TTS speed and naturalness using `TTS_TEXT_AGGREGATOR`:
+
+- `space_aware` (Default): Streaming is optimized for speed. Starts speaking on the first space/newline after a sentence end. **Lowest Latency**, but might chop sentences if the LLM pauses mid-thought.
+- `sentence`: Standard sentence buffering. Waits for the *next* sentence's first character to confirm the current one ended. **Better Stability**, slightly higher latency.
+- `none`: No aggregation. Streams tokens directly to TTS. **Experimental**, might cause "robotic" or jittery audio artifacts.
+
+To change it, update your `.env` or `docker-compose.yml`:
+```yaml
+TTS_TEXT_AGGREGATOR=sentence
+```
 
 ---
 

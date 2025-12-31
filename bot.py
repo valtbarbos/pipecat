@@ -135,12 +135,29 @@ async def bot(runner_args: RunnerArguments):
     # TTS: XTTS (Local)
     import aiohttp
     async with aiohttp.ClientSession() as session:
-        logger.info("Initializing TTS service...")
+        # Determine which text aggregator to use
+        # Options: "space_aware" (custom optimized), "sentence" (default SimpleTextAggregator), "none" (raw streaming)
+        aggregator_type = os.getenv("TTS_TEXT_AGGREGATOR", "space_aware").lower()
+        
+        text_aggregator = None
+        if aggregator_type == "space_aware":
+            logger.info("Using SpaceAwareTextAggregator for TTS")
+            text_aggregator = SpaceAwareTextAggregator()
+        elif aggregator_type == "sentence":
+            logger.info("Using SimpleTextAggregator (Sentence) for TTS")
+            text_aggregator = SimpleTextAggregator()
+        elif aggregator_type == "none":
+            logger.info("Using NO text aggregator for TTS (Token streaming)")
+            text_aggregator = None # Will rely on XTTSService default or raw handling
+        else:
+            logger.warning(f"Unknown TTS_TEXT_AGGREGATOR '{aggregator_type}', defaulting to SpaceAwareTextAggregator")
+            text_aggregator = SpaceAwareTextAggregator()
+
         tts = XTTSService(
             voice_id=os.getenv("TTS_VOICE", "Claribel Dervla"),
             base_url="http://localhost:8000",
             aiohttp_session=session,
-            text_aggregator=SpaceAwareTextAggregator(),
+            text_aggregator=text_aggregator,
         )
         logger.info("TTS service initialized.")
 

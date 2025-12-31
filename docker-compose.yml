@@ -53,6 +53,7 @@ services:
       # 512 is good for concise conversational turns.
       - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-512}
       - TTS_VOICE=${TTS_VOICE:-Claribel Dervla}
+      - TTS_TEXT_AGGREGATOR=${TTS_TEXT_AGGREGATOR:-space_aware}
       - SYSTEM_PROMPT_PATH=${SYSTEM_PROMPT_PATH:-instructions.md}
       - AVAILABLE_TTS_VOICES=Ana Florence,Andrew Chipper,Annmarie Nele,Asya Anara,Badr Odhiambo,Baldur Sanjin,Barbora MacLean,Brenda Stern,Camilla Holmström,Chandra MacFarland,Claribel Dervla,Craig Gutsy,Daisy Studious,Damien Black,Damjan Chapman,Dionisio Schuyler,Eugenio Mataracı,Ferran Simen,Filip Traverse,Gilberto Mathias,Gitta Nikolina,Gracie Wise,Henriette Usha,Ige Behringer,Ilkin Urbano,Kazuhiko Atallah,Kumar Dahl,Lidiya Szekeres,Lilya Stainthorpe,Ludvig Milivoj,Luis Moray,Maja Ruoho,Marcos Rudaski,Narelle Moon,Nova Hogarth,Rosemary Okafor,Royston Min,Sofia Hellen,Suad Qasim,Szofi Granger,Tammie Ema,Tammy Grit,Tanja Adelina,Torcull Diarmuid,Uta Obando,Viktor Eka,Viktor Menelaos,Vjollca Johnnie,Wulf Carlevaro,Xavier Hayasaka,Zacharie Aimilios,Zofija Kendrick
       - MEM0_API_KEY= # Add your Mem0 API key here, or configure local/qdrant in sota_bot.py
