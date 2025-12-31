@@ -47,6 +47,31 @@ from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
 from pipecat.turns.user_stop import TurnAnalyzerUserTurnStopStrategy
 from pipecat.turns.user_turn_strategies import UserTurnStrategies
 from pipecat.runner.types import SmallWebRTCRunnerArguments, RunnerArguments
+from pipecat.utils.text.base_text_aggregator import BaseTextAggregator, Aggregation, AggregationType
+from pipecat.utils.text.simple_text_aggregator import SimpleTextAggregator
+from pipecat.utils.string import match_endofsentence
+
+class SpaceAwareTextAggregator(SimpleTextAggregator):
+    """Aggregator that attempts to yield sentences eagerly on whitespace/newline.
+    
+    Standard SimpleTextAggregator waits for a non-whitespace character to confirm
+    a sentence boundary (lookahead). This adds latency equal to the generation time
+    of the first token of the NEXT sentence.
+    
+    This aggregator checks for sentence completeness as soon as a space or newline 
+    is encountered, allowing audio to start much sooner.
+    """
+    async def _check_sentence_with_lookahead(self, char: str):
+        if self._needs_lookahead and (char.isspace() or char == "\n"):
+             eos_marker = match_endofsentence(self._text)
+             if eos_marker:
+                 result = self._text[:eos_marker]
+                 self._text = self._text[eos_marker:]
+                 self._needs_lookahead = False
+                 return Aggregation(text=result.strip(), type=AggregationType.SENTENCE)
+        
+        return await super()._check_sentence_with_lookahead(char)
+
 
 # Try importing Mem0, handle rejection if missing (though we added to Dockerfile)
 try:
@@ -115,6 +140,7 @@ async def bot(runner_args: RunnerArguments):
             voice_id=os.getenv("TTS_VOICE", "Claribel Dervla"),
             base_url="http://localhost:8000",
             aiohttp_session=session,
+            text_aggregator=SpaceAwareTextAggregator(),
         )
         logger.info("TTS service initialized.")
 
