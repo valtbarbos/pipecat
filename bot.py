@@ -42,6 +42,7 @@ from pipecat.services.openai.base_llm import BaseOpenAILLMService
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.services.whisper.stt import Model, WhisperSTTService
 from pipecat.services.xtts.tts import XTTSService
+from pipecat.services.resembleai.tts import ResembleAITTSService
 from pipecat.transports.base_transport import TransportParams
 from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
 from pipecat.turns.user_stop import TurnAnalyzerUserTurnStopStrategy
@@ -81,7 +82,13 @@ except ImportError:
     logger.warning("Mem0 not installed. Memory features will be disabled.")
     MEM0_AVAILABLE = False
 
-load_dotenv(override=True)
+# Capture environment variables before they might be overridden by PipelineRunner
+# which calls load_dotenv(override=True)
+INITIAL_TTS_SERVICE = os.getenv("TTS_SERVICE")
+INITIAL_TTS_VOICE = os.getenv("TTS_VOICE")
+INITIAL_TTS_TEXT_AGGREGATOR = os.getenv("TTS_TEXT_AGGREGATOR")
+
+load_dotenv(override=False)
 
 logger.remove(0)
 logger.add(sys.stderr, level="DEBUG")
@@ -137,7 +144,7 @@ async def bot(runner_args: RunnerArguments):
     async with aiohttp.ClientSession() as session:
         # Determine which text aggregator to use
         # Options: "space_aware" (custom optimized), "sentence" (default SimpleTextAggregator), "none" (raw streaming)
-        aggregator_type = os.getenv("TTS_TEXT_AGGREGATOR", "space_aware").lower()
+        aggregator_type = (INITIAL_TTS_TEXT_AGGREGATOR or os.getenv("TTS_TEXT_AGGREGATOR", "space_aware")).lower()
         
         text_aggregator = None
         if aggregator_type == "space_aware":
@@ -153,12 +160,25 @@ async def bot(runner_args: RunnerArguments):
             logger.warning(f"Unknown TTS_TEXT_AGGREGATOR '{aggregator_type}', defaulting to SpaceAwareTextAggregator")
             text_aggregator = SpaceAwareTextAggregator()
 
-        tts = XTTSService(
-            voice_id=os.getenv("TTS_VOICE", "Claribel Dervla"),
-            base_url="http://localhost:8000",
-            aiohttp_session=session,
-            text_aggregator=text_aggregator,
-        )
+        tts_service_env = INITIAL_TTS_SERVICE
+        
+        if tts_service_env == "chatterbox":
+            logger.info("Initializing ChatterBox TTS service...")
+            tts = ResembleAITTSService(
+                api_key="dummy",
+                voice_uuid=INITIAL_TTS_VOICE or os.getenv("TTS_VOICE", "43c3da60-7604-4b80-827d-08b52822452a"),
+                url=os.getenv("CHATTERBOX_URL", "ws://localhost:8004/stream"),
+                sample_rate=22050,
+                aggregate_sentences=(text_aggregator is not None),
+                text_aggregator=text_aggregator,
+            )
+        else:
+            tts = XTTSService(
+                voice_id=os.getenv("TTS_VOICE", "Claribel Dervla"),
+                base_url="http://localhost:8000",
+                aiohttp_session=session,
+                text_aggregator=text_aggregator,
+            )
         logger.info("TTS service initialized.")
 
         # 3. Memory Setup (Mem0)
