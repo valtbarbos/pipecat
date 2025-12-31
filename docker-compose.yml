@@ -61,3 +61,11 @@ services:
       - ollama
       - xtts
     command: python bot.py -t webrtc --host 0.0.0.0 --port 7860
+
+  voice-ui:
+    build:
+      context: ./voice-ui-kit
+      dockerfile: Dockerfile
+    network_mode: host
+    environment:
+      - BOT_START_URL=http://localhost:7860/api/offer
