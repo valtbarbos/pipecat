@@ -70,3 +70,4 @@ services:
     network_mode: host
     environment:
       - BOT_START_URL=http://localhost:7860/api/offer
+      - UI_APP=${UI_APP:-03-tailwind}
