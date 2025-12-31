@@ -43,7 +43,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-ollama}
       - OPENAI_API_BASE=${OPENAI_API_BASE:-http://localhost:11434/v1}
       # ALTERNATIVE: - LLM_MODEL=tinyllama
-      - LLM_MODEL=${LLM_MODEL:-gemma3:27b}
+      - LLM_MODEL=${LLM_MODEL:-qwen2.5:14b}
       # LLM Temperature (0.0 - 2.0):
       # 0.2: Focused, deterministic (coding/math)
       # 0.7: Balanced (default)

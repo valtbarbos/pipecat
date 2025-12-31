@@ -13,12 +13,12 @@ The system uses `docker-compose` to orchestrate three services with full NVIDIA 
   - **STT**: `Whisper Large V3 Turbo` (Local GPU) for near-instant, punctuated transcription.
   - **VAD (Real-time Feedback)**: `SileroVAD` tuned to **0.3s** to provide immediate transcription feedback on the UI.
   - **Turn Analysis**: `LocalSmartTurnAnalyzerV3` provides semantic conversation control; it prevents the bot from interrupting you even during long thinking pauses.
-  - **LLM Client**: `OpenAILLMService` (connects to local Ollama `gemma3:27b`).
+  - **LLM Client**: `OpenAILLMService` (connects to local Ollama `qwen2.5:14b`).
   - **TTS Client**: `XTTSService` (connects to local XTTS service).
   - **Memory**: `Mem0MemoryService` (ready for persistent user context).
 
 ### 2. **LLM Service (`ollama`)**
-- **Role**: Provides the "brain" using **Gemma 3 27B**.
+- **Role**: Provides the "brain" using **Qwen 2.5 14B**.
 - **Hardware**: Full GPU acceleration via `nvidia-container-toolkit`.
 
 ### 3. **TTS Service (`xtts`)**
@@ -43,7 +43,7 @@ The system uses `docker-compose` to orchestrate three services with full NVIDIA 
 2.  **Download Models**:
     *   **Ollama**: Pull the SOTA model:
         ```bash
-        docker exec -it pipecat-ollama-1 ollama pull gemma3:27b
+        docker exec -it pipecat-ollama-1 ollama pull qwen2.5:14b
         ```
 
 3.  **Access the Dashboard**:

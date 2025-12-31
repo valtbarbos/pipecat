@@ -5,7 +5,7 @@ entirely on local hardware (optimized for RTX 4090).
 
 Features:
 - STT: Whisper Large V3 Turbo (Local GPU via faster-whisper)
-- LLM: Gemma 3 27B (Local via Ollama)
+- LLM: Qwen 2.5 14B (Local via Ollama)
 - TTS: Coqui XTTS v2 (Local)
 - VAD: SileroVAD (Tuned to 0.3s for real-time transcription feedback)
 - Turn Detection: LocalSmartTurnAnalyzerV3 (Semantic end-of-turn detection)
@@ -118,13 +118,13 @@ async def bot(runner_args: RunnerArguments):
     )
     logger.info("Whisper STT service initialized.")
 
-    # LLM: Ollama (Local) running Gemma 3
-    # Note: Ensure you have run `ollama pull gemma3:27b`
+    # LLM: Ollama (Local) running Qwen 2.5 14B
+    # Note: Ensure you have run `ollama pull qwen2.5:14b`
     logger.info("Initializing LLM service...")
     llm = OpenAILLMService(
         api_key=os.getenv("OPENAI_API_KEY", "ollama"),
         base_url=os.getenv("OPENAI_API_BASE", "http://localhost:11434/v1"),
-        model=os.getenv("LLM_MODEL", "gemma3:27b"),
+        model=os.getenv("LLM_MODEL", "qwen2.5:14b"),
         params=BaseOpenAILLMService.InputParams(
             temperature=float(os.getenv("LLM_TEMPERATURE", "0.7")),
             max_tokens=int(os.getenv("LLM_MAX_TOKENS", "512")),
