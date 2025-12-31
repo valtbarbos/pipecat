@@ -38,6 +38,7 @@ from pipecat.processors.frameworks.rtvi import (
     RTVIProcessor,
     RTVIServerMessageFrame,
 )
+from pipecat.services.openai.base_llm import BaseOpenAILLMService
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.services.whisper.stt import Model, WhisperSTTService
 from pipecat.services.xtts.tts import XTTSService
@@ -98,7 +99,11 @@ async def bot(runner_args: RunnerArguments):
     llm = OpenAILLMService(
         api_key=os.getenv("OPENAI_API_KEY", "ollama"),
         base_url=os.getenv("OPENAI_API_BASE", "http://localhost:11434/v1"),
-        model=os.getenv("LLM_MODEL", "gemma3:27b"), 
+        model=os.getenv("LLM_MODEL", "gemma3:27b"),
+        params=BaseOpenAILLMService.InputParams(
+            temperature=float(os.getenv("LLM_TEMPERATURE", "0.7")),
+            max_tokens=int(os.getenv("LLM_MAX_TOKENS", "512")),
+        ),
     )
     logger.info("LLM service initialized.")
 
