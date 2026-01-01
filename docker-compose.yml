@@ -78,7 +78,7 @@ services:
     depends_on:
       - ollama
       - xtts
-    command: python bot.py -t webrtc --host 0.0.0.0 --port 7860
+    command: python bot-edge.py -t webrtc --host 0.0.0.0 --port 7860
 
   voice-ui:
     build:
