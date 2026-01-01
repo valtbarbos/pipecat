@@ -35,7 +35,7 @@ COPY . .
 # Install dependencies
 # We install faster-whisper specifically as it's required for local gpu stt
 RUN python -m pip install --upgrade pip setuptools wheel && \
-    python -m pip install --no-cache-dir -e ".[daily,openai,silero,webrtc,runner,whisper,local-smart-turn-v3,mem0,mcp]" && \
+    python -m pip install --no-cache-dir -e ".[daily,openai,silero,webrtc,runner,whisper,local-smart-turn-v3,mem0,mcp,noisereduce,rnnoise]" && \
     python -m pip install --no-cache-dir faster-whisper
 
 # Set library path for CUDA

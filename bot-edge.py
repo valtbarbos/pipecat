@@ -23,6 +23,8 @@ from dotenv import load_dotenv
 from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADParams
+# Audio filters are imported lazily in create_audio_input_filter()
+from pipecat.processors.filters.stt_mute_filter import STTMuteFilter, STTMuteConfig, STTMuteStrategy
 from pipecat.frames.frames import (
     AudioRawFrame,
     EndFrame,
@@ -51,6 +53,8 @@ from pipecat.processors.frameworks.rtvi import (
     RTVIProcessor,
     RTVIServerMessageFrame,
 )
+from pipecat.observers.loggers.user_bot_latency_log_observer import UserBotLatencyLogObserver
+from pipecat.observers.loggers.metrics_log_observer import MetricsLogObserver
 from pipecat.services.openai.base_llm import BaseOpenAILLMService
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.services.stt_service import STTService
@@ -77,6 +81,33 @@ STT_MODE = os.getenv("STT_MODE", "streaming")  # streaming | segmented
 STT_INTERIM_INTERVAL_MS = int(os.getenv("STT_INTERIM_INTERVAL_MS", "200"))
 VAD_STOP_SECS = float(os.getenv("VAD_STOP_SECS", "0.8"))
 SYSTEM_PROMPT_PATH = os.getenv("SYSTEM_PROMPT_PATH", "instructions.md")
+
+STT_LANGUAGE = os.getenv("STT_LANGUAGE", "en")  # en | pt | auto
+ENABLE_STT_MUTE = os.getenv("ENABLE_STT_MUTE", "false").lower() == "true"
+# Open Source Filters: none | noisereduce | rnnoise
+AUDIO_FILTER = os.getenv("AUDIO_FILTER", "rnnoise")
+
+def create_audio_input_filter():
+    if AUDIO_FILTER == "noisereduce":
+        logger.info("Using NoisereduceFilter (Open Source)")
+        try:
+            from pipecat.audio.filters.noisereduce_filter import NoisereduceFilter
+            return NoisereduceFilter()
+        except ImportError:
+            logger.error("Failed to load NoisereduceFilter. Pip install 'pipecat-ai[noisereduce]' missing?")
+            return None
+    elif AUDIO_FILTER == "rnnoise":
+        logger.info("Using RNNoiseFilter (Open Source)")
+        try:
+            from pipecat.audio.filters.rnnoise_filter import RNNoiseFilter
+            return RNNoiseFilter()
+        except ImportError:
+            logger.error("Failed to load RNNoiseFilter. Pip install 'pipecat-ai[rnnoise]' missing?")
+            return None
+    
+    if AUDIO_FILTER != "none":
+        logger.warning(f"Unknown or unsupported AUDIO_FILTER: {AUDIO_FILTER}")
+    return None
 
 # --- 1. Custom Aggregator (Low Latency) ---
 class SpaceAwareTextAggregator(SimpleTextAggregator):
@@ -287,6 +318,7 @@ async def bot(runner_args: RunnerArguments):
             camera_in_enabled=True,
             camera_out_enabled=True,
             vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=VAD_STOP_SECS)),
+            audio_in_filter=create_audio_input_filter(),
         )
     )
 
@@ -296,6 +328,7 @@ async def bot(runner_args: RunnerArguments):
         model=Model.LARGE_V3_TURBO,
         device="cuda",
         interim_interval_ms=STT_INTERIM_INTERVAL_MS,
+        language=None if STT_LANGUAGE == "auto" else STT_LANGUAGE,
     )
     logger.info("LocalStreamingWhisperSTTService initialized (lazy).")
     
@@ -379,6 +412,13 @@ async def bot(runner_args: RunnerArguments):
         pipeline_steps = [
             transport.input(),
             rtvi,            # Inspects frames, handles client messages
+        ]
+        
+        if ENABLE_STT_MUTE:
+            logger.info("Universal STT Muting Enabled (Strategy: ALWAYS)")
+            pipeline_steps.append(STTMuteFilter(config=STTMuteConfig(strategies={STTMuteStrategy.ALWAYS})))
+            
+        pipeline_steps.extend([
             stt,             # Produces InterimTranscriptionFrame + TranscriptionFrame
             policy_processor,# Modifies frames
             InterimBlockingFilter(), # Blocks Interim frames from Context
@@ -387,7 +427,7 @@ async def bot(runner_args: RunnerArguments):
             tts,
             transport.output(),
             context_aggregator.assistant(),
-        ]
+        ])
 
         pipeline = Pipeline(pipeline_steps)
 
@@ -396,8 +436,13 @@ async def bot(runner_args: RunnerArguments):
             params=PipelineParams(
                 allow_interruptions=True,
                 enable_metrics=True,
+                report_only_initial_ttfb=True,
             ),
-            observers=[RTVIObserver(rtvi)], # Watches for all frames to send to UI
+            observers=[
+                RTVIObserver(rtvi),
+                UserBotLatencyLogObserver(),
+                MetricsLogObserver(),
+            ], # Watches for all frames to send to UI
         )
 
         @rtvi.event_handler("on_client_ready")

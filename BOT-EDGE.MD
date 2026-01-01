@@ -164,5 +164,51 @@ This decouples the UI from the Python logic. You can swap the Python bot entirel
 
 ---
 
+---
+
+## 9. The Clarifier: Transport Audio Filtering
+**Implementation:** `RNNoiseFilter` / `NoisereduceFilter`
+
+### The Concept
+Garbage in, garbage out. If the VAD hears a fan, it stays open. If the STT hears a keyboard, it hallucinates words. We must scrub the signal *before* it touches the intelligence.
+
+### 9.1 Filter Selection
+*   **RNNoise (Recommended):** An RNN-based noise suppressor. High quality, low latency, handles non-stationary noise (voices, clicks) effectively.
+*   **Noisereduce:** Spectral gating. Good for constant hums, but can be aggressive on speech.
+
+### How It Works
+We inject a cleaner at the transport layer, filtering the `AudioRawFrame` before it reaches the VAD.
+*   **Default**: `AUDIO_FILTER=rnnoise`
+*   **Lazy Loading**: The architecture only loads the ML libraries if needed.
+
+---
+
+## 10. The Silencer: Feedback Suppression (Optional)
+**Implementation:** `STTMuteFilter`
+
+### The Concept
+In loud environments (speakerphone), the microphone hears the bot's own voice. The STT transcribes the bot, the LLM replies to itself, and chaos ensues.
+
+### How It Works
+When enabled via `ENABLE_STT_MUTE`, this filter acts as a one-way valve.
+*   **Bot Speaking?** -> **Mute Input**. The STT hears silence.
+*   **Bot Silent?** -> **Unmute Input**. The User can speak.
+*   *Trade-off*: You cannot interrupt the bot if this is on. It is a "Walkie-Talkie" mode for hostile acoustic environments.
+
+---
+
+## 11. The Pulse: Hyper-Observability
+**Implementation:** `UserBotLatencyLogObserver` & `MetricsLogObserver`
+
+### The Concept
+You cannot optimize what you cannot measure. "It feels slow" is not a bug report. "Latency ended at 203ms" is engineering.
+
+### How It Works
+We wrap the pipeline in observers that do not touch the data, but measure its passage.
+*   **Turn Latency**: Measures the exact millisecond delta between `VADUserStoppedSpeaking` and `BotStartedSpeaking`.
+*   **TTFB**: Tracks the "Time To First Byte" of every LLM and TTS service to spot bottlenecks instantly.
+
+---
+
 ## Summary
 The `bot-edge.py` is not just script; it is a carefully orchestrated set of parallel processes. It decouples **Speed** (Interim/Display) from **Thought** (Final/Context), allowing us to achieve the holy grail of Voice AI: **The Fast, Patient, Intelligent Agent.**

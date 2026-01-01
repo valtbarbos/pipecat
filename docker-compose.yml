@@ -78,6 +78,10 @@ services:
       - STT_MODE=${STT_MODE:-streaming}
       - STT_INTERIM_INTERVAL_MS=${STT_INTERIM_INTERVAL_MS:-200}
       - VAD_STOP_SECS=${VAD_STOP_SECS:-0.8}
+      # UltraSpec Audio Config
+      - AUDIO_FILTER=${AUDIO_FILTER:-none}
+      - STT_LANGUAGE=${STT_LANGUAGE:-en}
+      - ENABLE_STT_MUTE=${ENABLE_STT_MUTE:-false}
 
     network_mode: host
     depends_on:
