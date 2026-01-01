@@ -127,7 +127,7 @@ class LocalStreamingWhisperSTTService(STTService):
         # self._load() 
 
     async def start(self, frame: StartFrame):
-        await self._load_model()
+        asyncio.create_task(self._load_model())
         await super().start(frame)
 
     async def run_stt(self, audio: bytes):
