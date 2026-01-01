@@ -136,6 +136,33 @@ If you see `libcudnn_ops.so` or `cudnnCreateTensorDescriptor` errors:
    docker logs -f pipecat-pipecat-1
    ```
 
+
 ### Network Issues
 WebRTC requires `network_mode: host`. If running on Mac/Windows, ensure Docker Desktop is configured to allow host networking or use specific port mappings (though `host` is preferred for WebRTC).
+
+---
+
+## ⚡️ Edge-Latency Architecture
+
+The project now uses the **Edge-Latency Architecture** (`bot-edge.py`) by default. This provides the absolute lowest perceptual latency using a "Two-Stream Truth" approach.
+
+> **Full Architecture Spec**: Read [BOT-EDGE.MD](BOT-EDGE.MD) for a deep dive into the philosophy and design.
+
+### Key Capabilities
+- **True Streaming STT**: Uses a local rolling-buffer strategy to push interim text to the UI constantly (every ~200ms).
+- **Real-time Policy**: Applies interim-specific text normalization (no "flicker") vs final punctuation.
+- **Hybrid Turn Detection**: VAD decides when to *listen*, but a Semantic Judge decides when to *reply*.
+- **Micro-chunk TTS**: Starts speaking on the first available space/newline, rather than waiting for full sentences.
+
+### Performance Tuning (Environment Variables)
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `STT_MODE` | `streaming` | Use the local rolling-buffer STT. |
+| `STT_INTERIM_INTERVAL_MS` | `200` | Frequency of interim text updates (lower = faster UI). |
+| `VAD_STOP_SECS` | `0.8` | VAD silence duration (tunable, distinct from semantic stop). |
+
+> **Note**: Default turn timeout and text aggregation strategies are currently optimized and hardcoded in the Edge bot for maximum performance.
+
+
 
