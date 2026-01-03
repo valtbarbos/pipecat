@@ -82,12 +82,14 @@ services:
       # UltraSpec Audio Config
       - AUDIO_FILTER=${AUDIO_FILTER:-none}
       - STT_LANGUAGE=${STT_LANGUAGE:-en}
+
       - ENABLE_STT_MUTE=${ENABLE_STT_MUTE:-false}
+      - ENABLE_WHISKER=${ENABLE_WHISKER:-true}
 
     network_mode: host
     depends_on:
       - ollama
-      - xtts
+      - chatterbox
     command: python bot-edge.py -t webrtc --host 0.0.0.0 --port 7860
 
   voice-ui:
@@ -98,3 +100,12 @@ services:
     environment:
       - BOT_START_URL=http://localhost:7860/api/offer
       - UI_APP=${UI_APP:-03-tailwind}
+
+  whisker-ui:
+    build:
+      context: ./whisker/ui
+      dockerfile: Dockerfile
+    network_mode: host
+    ports:
+      - "5173:5173" 
+

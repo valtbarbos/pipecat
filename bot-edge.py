@@ -86,6 +86,7 @@ STT_LANGUAGE = os.getenv("STT_LANGUAGE", "en")  # en | pt | auto
 ENABLE_STT_MUTE = os.getenv("ENABLE_STT_MUTE", "false").lower() == "true"
 # Open Source Filters: none | noisereduce | rnnoise
 AUDIO_FILTER = os.getenv("AUDIO_FILTER", "rnnoise")
+ENABLE_WHISKER = os.getenv("ENABLE_WHISKER", "false").lower() == "true"
 
 def create_audio_input_filter():
     if AUDIO_FILTER == "noisereduce":
@@ -444,6 +445,17 @@ async def bot(runner_args: RunnerArguments):
                 MetricsLogObserver(),
             ], # Watches for all frames to send to UI
         )
+        
+        if ENABLE_WHISKER:
+            try:
+                from pipecat_whisker import WhiskerObserver
+                # Whisker observes the pipeline directly
+                whisker = WhiskerObserver(pipeline)
+                task.params.observers.append(whisker)
+                logger.info("Whisker enabled on ws://localhost:9090")
+            except ImportError:
+                logger.error("ENABLE_WHISKER=true but 'pipecat-whisker' not installed.")
+
 
         @rtvi.event_handler("on_client_ready")
         async def on_client_ready(rtvi):
