@@ -13,19 +13,20 @@ services:
     ports:
       - "11434:11434"
 
-  xtts:
-    image: ghcr.io/coqui-ai/xtts-streaming-server:latest-cuda121
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    environment:
-      - COQUI_TOS_AGREED=1
-    ports:
-      - "8000:80"
+  # Keep it here for reference
+  # xtts:
+  #   image: ghcr.io/coqui-ai/xtts-streaming-server:latest-cuda121
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+  #   environment:
+  #     - COQUI_TOS_AGREED=1
+  #   ports:
+  #     - "8000:80"
 
   chatterbox:
     build:
