@@ -114,6 +114,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   services.
   (PR [#3252](https://github.com/pipecat-ai/pipecat/pull/3252))
 
+### Added
+
+- Added `ResembleAITTSService` for Resemble AI Text-to-Speech Websocket integration.
+
 ### Changed
 
 - `FunctionCallInProgressFrame` and `FunctionCallResultFrame` have changed from
