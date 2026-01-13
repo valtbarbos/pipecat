@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2024-2025 Daily
+# Copyright (c) 2024–2026, Daily
 #
 # SPDX-License-Identifier: BSD 2-Clause License
 #
@@ -105,7 +105,6 @@ TESTS_07 = [
     ("07c-interruptible-deepgram.py", EVAL_SIMPLE_MATH),
     ("07c-interruptible-deepgram-flux.py", EVAL_SIMPLE_MATH),
     ("07c-interruptible-deepgram-http.py", EVAL_SIMPLE_MATH),
-    ("07c-interruptible-deepgram-vad.py", EVAL_SIMPLE_MATH),
     ("07d-interruptible-elevenlabs.py", EVAL_SIMPLE_MATH),
     ("07d-interruptible-elevenlabs-http.py", EVAL_SIMPLE_MATH),
     ("07f-interruptible-azure.py", EVAL_SIMPLE_MATH),
@@ -188,6 +187,7 @@ TESTS_19 = [
     ("19a-azure-realtime-beta.py", EVAL_WEATHER),
     ("19b-openai-realtime-text.py", EVAL_WEATHER),
     ("19b-openai-realtime-beta-text.py", EVAL_WEATHER),
+    ("19c-openai-realtime-live-video.py", EVAL_VISION_CAMERA),
 ]
 
 TESTS_21 = [
@@ -239,6 +239,10 @@ TESTS_51 = [
     ("51-grok-realtime.py", EVAL_WEATHER),
 ]
 
+TESTS_53 = [
+    ("53-concurrent-llm-evaluation.py", EVAL_SIMPLE_MATH),
+]
+
 TESTS = [
     *TESTS_07,
     *TESTS_12,
@@ -254,6 +258,7 @@ TESTS = [
     *TESTS_49,
     *TESTS_50,
     *TESTS_51,
+    *TESTS_53,
 ]
 
 

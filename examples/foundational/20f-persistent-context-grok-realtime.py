@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2024–2025, Daily
+# Copyright (c) 2024-2026, Daily
 #
 # SPDX-License-Identifier: BSD 2-Clause License
 #
@@ -194,7 +194,6 @@ Remember, your responses should be short - just one or two sentences usually."""
     llm = GrokRealtimeLLMService(
         api_key=os.getenv("GROK_API_KEY"),
         session_properties=session_properties,
-        start_audio_paused=False,
     )
 
     # Register function handlers

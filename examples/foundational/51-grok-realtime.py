@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2024–2025, Daily
+# Copyright (c) 2024-2026, Daily
 #
 # SPDX-License-Identifier: BSD 2-Clause License
 #
@@ -201,7 +201,6 @@ Always be helpful and proactive in offering assistance.""",
     llm = GrokRealtimeLLMService(
         api_key=os.getenv("GROK_API_KEY"),
         session_properties=session_properties,
-        start_audio_paused=False,
     )
 
     # Register function handlers

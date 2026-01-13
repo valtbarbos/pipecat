@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2024–2025, Daily
+# Copyright (c) 2024-2026, Daily
 #
 # SPDX-License-Identifier: BSD 2-Clause License
 #
@@ -205,7 +205,6 @@ Remember, your responses should be short. Just one or two sentences, usually."""
     llm = OpenAIRealtimeLLMService(
         api_key=os.getenv("OPENAI_API_KEY"),
         session_properties=session_properties,
-        start_audio_paused=False,
     )
 
     # you can either register a single function for all function calls, or specific functions
